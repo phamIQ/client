@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { aiIntegrationService } from '../api/aiIntegrationService';
-import { alleaiService } from '../api/alleaiService';
+import { freeaiService } from '../api/alleaiService';
 
 interface AIState {
   loading: boolean;
@@ -12,7 +12,6 @@ interface AIState {
 interface AIActions {
   chat: (message: string, models?: string[]) => Promise<string>;
   getDiseaseRecommendations: (diseaseName: string, confidence: number, cropType: string, models?: string[]) => Promise<any>;
-  askAboutDisease: (diseaseName: string, confidence: number, cropType: string, question: string, models?: string[]) => Promise<string>;
   getTreatmentRecommendations: (diseaseName: string, confidence: number, cropType: string, models?: string[]) => Promise<string>;
   getPreventionStrategies: (diseaseName: string, cropType: string, models?: string[]) => Promise<string>;
   generateDiscoveryContent: (topic: string, models?: string[]) => Promise<{ title: string; description: string; imageUrl?: string }>;
@@ -49,7 +48,7 @@ export const useAI = (): AIState & AIActions => {
   const chat = useCallback(async (message: string, models?: string[]): Promise<string> => {
     setLoading(true);
     try {
-      const result = await alleaiService.chat(message, models);
+      const result = await freeaiService.chat(message, models);
       setError(null);
       return result;
     } catch (error) {
@@ -69,21 +68,6 @@ export const useAI = (): AIState & AIActions => {
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to get disease recommendations';
-      setError(errorMessage);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, [setLoading, setError]);
-
-  const askAboutDisease = useCallback(async (diseaseName: string, confidence: number, cropType: string, question: string, models?: string[]): Promise<string> => {
-    setLoading(true);
-    try {
-      const result = await aiIntegrationService.askAboutDisease(diseaseName, confidence, cropType, question, models);
-      setError(null);
-      return result;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to get disease advice';
       setError(errorMessage);
       throw error;
     } finally {
@@ -213,7 +197,6 @@ export const useAI = (): AIState & AIActions => {
     ...state,
     chat,
     getDiseaseRecommendations,
-    askAboutDisease,
     getTreatmentRecommendations,
     getPreventionStrategies,
     generateDiscoveryContent,
@@ -243,7 +226,7 @@ export const useAIChat = () => {
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      const response = await alleaiService.chat(message, models);
+      const response = await freeaiService.chat(message, models);
       const assistantMessage = { role: 'assistant' as const, content: response };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {

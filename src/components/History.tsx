@@ -21,7 +21,10 @@ import {
   ChevronRight,
   Bot,
   MessageCircle,
-  Trash2
+  Trash2,
+  Plus,
+  History as HistoryIcon,
+  Settings
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -190,14 +193,6 @@ const History: React.FC<HistoryProps> = ({ className = '' }) => {
   if (authLoading) {
     return (
       <div className={`space-y-6 ${className}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Analysis History</h2>
-            <p className="text-gray-500 mt-1">Review your previous crop disease detections</p>
-          </div>
-        </div>
-
         {/* Authentication Loading State */}
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
@@ -212,14 +207,6 @@ const History: React.FC<HistoryProps> = ({ className = '' }) => {
   if (!isAuthenticated) {
     return (
       <div className={`space-y-6 ${className}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Analysis History</h2>
-            <p className="text-gray-500 mt-1">Review your previous crop disease detections</p>
-          </div>
-        </div>
-
         {/* Not Authenticated State */}
         <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="p-8 text-center">
@@ -238,24 +225,6 @@ const History: React.FC<HistoryProps> = ({ className = '' }) => {
   if (loading) {
     return (
       <div className={`space-y-6 ${className}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Analysis History</h2>
-            <p className="text-gray-500 mt-1">Review your previous crop disease detections</p>
-          </div>
-          <Button
-            onClick={refreshHistory}
-            disabled={loading}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-        </div>
-
         {/* Loading State */}
         <div className="space-y-4">
           {[...Array(6)].map((_, i) => (
@@ -280,23 +249,6 @@ const History: React.FC<HistoryProps> = ({ className = '' }) => {
   if (error) {
     return (
       <div className={`space-y-6 ${className}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Analysis History</h2>
-            <p className="text-gray-500 mt-1">Review your previous crop disease detections</p>
-          </div>
-          <Button
-            onClick={refreshHistory}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </Button>
-        </div>
-
         {/* Error State */}
         <Card className="border-red-200 bg-red-50">
           <CardContent className="p-8 text-center">
@@ -315,25 +267,15 @@ const History: React.FC<HistoryProps> = ({ className = '' }) => {
   if (history.length === 0) {
     return (
       <div className={`space-y-6 ${className}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">Analysis History</h2>
-            <p className="text-gray-500 mt-1">Review your previous crop disease detections</p>
-          </div>
-          <Button
-            onClick={refreshHistory}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </Button>
-        </div>
         {/* Empty State */}
         <div className="text-center text-gray-500 py-12">
-          No analysis history found.
+          <HistoryIcon className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Analysis History</h3>
+          <p className="text-gray-500 mb-4">Start by uploading an image for disease detection</p>
+          <Button onClick={() => navigate('/upload')} className="bg-green-600 hover:bg-green-700">
+            <Plus className="w-4 h-4 mr-2" />
+            Start Analysis
+          </Button>
         </div>
       </div>
     );
@@ -341,27 +283,9 @@ const History: React.FC<HistoryProps> = ({ className = '' }) => {
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Analysis History</h2>
-          <p className="text-gray-500 mt-1">Review your previous crop disease detections</p>
-        </div>
-        <Button
-          onClick={refreshHistory}
-          disabled={loading}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
-
       {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row items-center gap-4">
-        <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-md">
+        <div className="flex items-center gap-2 bg-gray-100 p-2 rounded-md flex-1">
           <Search className="w-4 h-4 text-gray-500" />
           <input
             type="text"
@@ -381,68 +305,83 @@ const History: React.FC<HistoryProps> = ({ className = '' }) => {
           <option value="moderate">Moderate</option>
           <option value="mild">Mild</option>
         </select>
+        <Button
+          onClick={refreshHistory}
+          disabled={loading}
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
       
       {/* History List */}
       <div className="space-y-4">
         {filteredHistory.map((item) => (
-          <Card key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border-gray-200">
-            <div className="flex-1 flex items-center gap-4">
-              <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                {item.type === 'image' ? (
-                  <ImageIcon className="w-8 h-8 text-gray-600" />
+          <Card key={item.id} className="hover:shadow-md transition-shadow duration-200">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                    {item.type === 'image' ? (
+                      <ImageIcon className="w-6 h-6 text-gray-600" />
+                    ) : (
+                      <Crop className="w-6 h-6 text-gray-600" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {item.type === 'image' ? item.disease : item.prediction}
+                    </h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {item.type === 'image' ? (
+                        <>
+                          Crop: {item.crop_type} • Severity: {item.severity}
+                        </>
                       ) : (
-                  <Crop className="w-8 h-8 text-gray-600" />
+                        <>
+                          Crop: {item.best_crop} • Confidence: {Math.round(item.confidence * 100)}%
+                        </>
                       )}
-                    </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900">{item.type === 'image' ? item.disease : item.prediction}</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {item.type === 'image' ? (
-                    <>
-                      Crop: {item.crop_type}, Severity: {item.severity}
-                    </>
-                  ) : (
-                    <>
-                      Crop: {item.best_crop}, Confidence: {item.confidence * 100}%
-                    </>
-                  )}
-                </p>
-                <p className="text-sm text-gray-600 mt-1">
-                  Created: {new Date(item.created_at).toLocaleDateString()}
-                </p>
-                        </div>
-                      </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={(e) => handleViewDetails(item)}
-                className="flex items-center gap-1"
-              >
-                            <Eye className="w-4 h-4" />
-                            View Details
-                          </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                            onClick={(e) => handleChatClick(e, item)}
-                className="flex items-center gap-1"
-                          >
-                            <MessageCircle className="w-4 h-4" />
-                Chat
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                onClick={(e) => handleDeleteHistory(e, item)}
-                className="flex items-center gap-1 text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
-                          </Button>
-                        </div>
-              </Card>
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {new Date(item.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => handleViewDetails(item)}
+                    className="flex items-center gap-1"
+                  >
+                    <Eye className="w-4 h-4" />
+                    View
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => handleChatClick(e, item)}
+                    className="flex items-center gap-1"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Chat
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={(e) => handleDeleteHistory(e, item)}
+                    className="flex items-center gap-1 text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>

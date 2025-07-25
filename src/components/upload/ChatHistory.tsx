@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bot, MessageCircle, Send } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import { DetectionResult } from '@/api/predictionService';
 import { MultispectralDetectionResult } from '@/api/multispectralService';
 
@@ -20,13 +21,6 @@ interface ChatHistoryProps {
   onNavigateToResults: (result: any) => void;
   getSeverityColor: (severity: string) => string;
   predictionService: any;
-  onAskAI?: (disease: string, confidence: number, cropType: string) => void;
-  aiChatHistory?: { role: 'user' | 'assistant'; content: string }[];
-  aiChatInput?: string;
-  onAiChatInputChange?: (value: string) => void;
-  onAiSend?: () => void;
-  aiLoading?: boolean;
-  selectedModels?: string[];
 }
 
 const ChatHistory: React.FC<ChatHistoryProps> = ({
@@ -34,24 +28,28 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
   onNavigateToResults,
   getSeverityColor,
   predictionService,
-  onAskAI,
-  aiChatHistory = [],
-  aiChatInput = "",
-  onAiChatInputChange,
-  onAiSend,
-  aiLoading = false,
-  selectedModels = [],
 }) => {
-  const [expandedChats, setExpandedChats] = useState<Set<number>>(new Set());
+  const navigate = useNavigate();
 
-  const toggleChat = (index: number) => {
-    const newExpanded = new Set(expandedChats);
-    if (newExpanded.has(index)) {
-      newExpanded.delete(index);
-    } else {
-      newExpanded.add(index);
+  // Function to navigate to Chat page with disease context
+  const handleNavigateToChat = (entry: ChatEntry) => {
+    if ('disease' in entry.result) {
+      const chatContext = {
+        disease: entry.result.disease,
+        cropType: entry.result.cropType,
+        confidence: entry.result.confidence / 100, // Convert percentage to decimal
+        severity: entry.result.severity,
+        filename: entry.userFile?.name,
+        created_at: new Date().toISOString(),
+        image_url: entry.result.imageUrl
+      };
+      
+      // Store context in localStorage for the Chat page
+      localStorage.setItem('chatContext', JSON.stringify(chatContext));
+      
+      // Navigate to Chat page
+      navigate('/chat');
     }
-    setExpandedChats(newExpanded);
   };
 
   return (
@@ -131,135 +129,22 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({
                   </div>
                 </div>
                 
-                {/* Ask AI Button - prominently displayed */}
-                {onAskAI && (
-                  <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium text-gray-900 mb-1">Need help with this disease?</h3>
-                        <p className="text-sm text-gray-700">Ask our AI assistant for personalized advice</p>
-                      </div>
-                      <Button
-                        onClick={() => {
-                          if ('disease' in entry.result) {
-                            onAskAI(entry.result.disease, entry.result.confidence, entry.result.cropType);
-                            toggleChat(idx);
-                          }
-                        }}
-                        className="bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        Ask AI
-                      </Button>
+                {/* Chat Button - prominently displayed */}
+                <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-gray-900 mb-1">Need help with this disease?</h3>
+                      <p className="text-sm text-gray-700">Chat with our AI assistant for personalized advice</p>
                     </div>
+                    <Button
+                      onClick={() => handleNavigateToChat(entry)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      Chat
+                    </Button>
                   </div>
-                )}
-                
-                {/* AI Chat Section - Integrated directly below the prediction */}
-                {expandedChats.has(idx) && (
-                  <div className="mt-6 border-t border-gray-200 pt-6">
-                    {/* AI Chat Header */}
-                    <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center">
-                          <Bot className="w-3 h-3 text-white" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-gray-900 text-sm">AI Assistant</h4>
-                          <p className="text-xs text-gray-700">Ask questions about {entry.result.disease}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Chat Messages */}
-                    <div className="space-y-3 max-h-64 overflow-y-auto pr-2 scrollbar-hide bg-gray-50 rounded-lg p-3 border border-gray-200" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                      {aiChatHistory.length === 0 && (
-                        <div className="text-center py-4 text-gray-500">
-                          <Bot className="w-6 h-6 mx-auto mb-2 text-gray-400" />
-                          <p className="text-xs mb-3">Ask me about {entry.result.disease}</p>
-                          
-                          {/* Suggested Questions */}
-                          <div className="space-y-2">
-                            <p className="text-xs text-gray-400 mb-2">Quick questions:</p>
-                            <div className="flex flex-wrap gap-1 justify-center">
-                              {[
-                                "How do I treat this?",
-                                "What causes this?",
-                                "How to prevent it?",
-                                "Is it contagious?",
-                                "What are symptoms?"
-                              ].map((question, qIdx) => (
-                                <button
-                                  key={qIdx}
-                                  onClick={() => {
-                                    if (onAiChatInputChange && onAiSend) {
-                                      onAiChatInputChange(question);
-                                      onAiSend();
-                                    }
-                                  }}
-                                  className="text-xs bg-white hover:bg-gray-100 text-gray-700 px-2 py-1 rounded-full transition-colors border border-gray-200"
-                                >
-                                  {question}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {aiChatHistory.map((msg, msgIdx) => (
-                        <div key={msgIdx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}> 
-                          <div className={`text-xs max-w-[80%] whitespace-pre-line p-2 rounded-lg ${
-                            msg.role === 'user' 
-                              ? 'bg-gray-200 text-gray-900 border border-gray-300' 
-                              : 'bg-gray-100 text-gray-800 border border-gray-200'
-                          }`}> 
-                            {msg.content}
-                          </div>
-                        </div>
-                      ))}
-                      {aiLoading && (
-                        <div className="flex justify-start">
-                          <div className="text-xs text-gray-900 animate-pulse bg-gray-100 p-2 rounded-lg border border-gray-200">
-                            <div className="flex items-center gap-1">
-                              <div className="w-1.5 h-1.5 bg-gray-600 rounded-full animate-bounce"></div>
-                              <div className="w-1.5 h-1.5 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                              <div className="w-1.5 h-1.5 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* AI Chat Input */}
-                    {onAiChatInputChange && onAiSend && (
-                      <div className="mt-3 flex justify-center">
-                        <div className="flex items-center gap-2 max-w-md w-full">
-                          <input
-                            type="text"
-                            className="flex-1 text-xs bg-white border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                            placeholder="Ask about this disease..."
-                            value={aiChatInput}
-                            onChange={e => onAiChatInputChange(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter' && aiChatInput.trim() && !aiLoading) {
-                                e.preventDefault();
-                                onAiSend();
-                              }
-                            }}
-                          />
-                          <Button
-                            size="sm"
-                            className="bg-gray-600 hover:bg-gray-700 text-white"
-                            disabled={!aiChatInput.trim() || aiLoading}
-                            onClick={onAiSend}
-                          >
-                            <Send className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                </div>
                 
                 {/* Treatment Information and rest of the content */}
                 {(() => {

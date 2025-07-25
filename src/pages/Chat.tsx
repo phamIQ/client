@@ -30,9 +30,13 @@ import {
   Calendar,
   FileText
 } from "lucide-react";
-import { chatService, type Message, type ChatHistory, type ChatContext } from "./chatservice";
 import SidebarLayout from '../components/SidebarLayout';
 import { useAuth } from '../hooks/useAuth';
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import Spinner from "@/components/ui/Spinner";
+import ReactMarkdown from 'react-markdown';
 
 // Types
 interface SidebarItem {
@@ -47,6 +51,23 @@ interface ChatState {
   error: string | null;
   isConnected: boolean;
 }
+
+type Message = {
+  id: number;
+  type: 'user' | 'bot';
+  content: string;
+  timestamp: Date;
+};
+
+type ChatContext = {
+  disease: string;
+  cropType: string;
+  confidence: number;
+  severity: string;
+  filename?: string;
+  created_at?: string;
+  image_url?: string;
+};
 
 const Chat: React.FC = () => {
   // State
@@ -68,7 +89,6 @@ const Chat: React.FC = () => {
   const [chatContext, setChatContext] = useState<ChatContext | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const [chatHistory, setChatHistory] = useState<ChatHistory[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [showContextDetails, setShowContextDetails] = useState(true);
 
@@ -133,28 +153,31 @@ const Chat: React.FC = () => {
       
       try {
         // First test if API is reachable
-        const isBackendReachable = await chatService.testBackendConnection();
+        const isBackendReachable = await fetch("/test-backend");
         if (!isBackendReachable) {
           setChatState(prev => ({ 
             ...prev, 
             isConnected: false,
-            error: 'Backend server is not reachable. Please ensure you have an internet connection.'
+            error: 'Backend server is not reachable. Please ensure you have an internet connection.',
+            isLoading: false
           }));
           return;
         }
         
-        const isAvailable = await chatService.isAvailable();
+        const isAvailable = await fetch("/is-available");
         setChatState(prev => ({ 
           ...prev, 
-          isConnected: isAvailable,
-          error: isAvailable ? null : 'Chat service is not available. Please check your connection.'
+          isConnected: isAvailable.ok,
+          error: isAvailable.ok ? null : 'Chat service is not available. Please check your connection.',
+          isLoading: false
         }));
       } catch (error) {
         console.error('Connection test failed:', error);
         setChatState(prev => ({ 
           ...prev, 
           isConnected: false,
-          error: 'Failed to connect to chat service.'
+          error: 'Failed to connect to chat service.',
+          isLoading: false
         }));
       }
     };
@@ -251,8 +274,12 @@ What specific aspect of ${context.disease} management would you like to discuss?
   // Load chat history
   const loadChatHistory = async () => {
     try {
-      const history = await chatService.getChatHistory(20);
-      setChatHistory(history);
+      const history = await fetch("/get-chat-history?limit=20");
+      if (!history.ok) {
+        throw new Error("Failed to load chat history");
+      }
+      const data: any[] = await history.json(); // Changed to any[]
+      // setChatHistory(data); // This line was removed as per the edit hint
     } catch (error) {
       console.error('Error loading chat history:', error);
     }
@@ -261,8 +288,12 @@ What specific aspect of ${context.disease} management would you like to discuss?
   // Load specific chat
   const loadChat = async (chatId: string) => {
     try {
-      const chat = await chatService.getChatById(chatId);
-      setMessages(chat.messages.map((msg, index) => ({
+      const chat = await fetch(`/get-chat-by-id/${chatId}`);
+      if (!chat.ok) {
+        throw new Error("Failed to load chat");
+      }
+      const data: { messages: Message[] } = await chat.json();
+      setMessages(data.messages.map((msg: any, index: number) => ({
         id: index + 1,
         type: msg.role === 'user' ? 'user' : 'bot',
         content: msg.content,
@@ -278,7 +309,10 @@ What specific aspect of ${context.disease} management would you like to discuss?
   // Delete chat
   const deleteChat = async (chatId: string) => {
     try {
-      await chatService.deleteChat(chatId);
+      const response = await fetch(`/delete-chat/${chatId}`, { method: "DELETE" });
+      if (!response.ok) {
+        throw new Error("Failed to delete chat");
+      }
       await loadChatHistory();
       if (currentChatId === chatId) {
         handleClearChat();
@@ -292,11 +326,11 @@ What specific aspect of ${context.disease} management would you like to discuss?
   const retryConnection = async () => {
     setChatState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      const isAvailable = await chatService.isAvailable();
+      const isAvailable = await fetch("/is-available");
       setChatState(prev => ({ 
         ...prev, 
-        isConnected: isAvailable,
-        error: isAvailable ? null : 'Chat service is not available. Please check your connection.',
+        isConnected: isAvailable.ok,
+        error: isAvailable.ok ? null : 'Chat service is not available. Please check your connection.',
         isLoading: false
       }));
     } catch (error) {
@@ -352,14 +386,30 @@ What specific aspect of ${context.disease} management would you like to discuss?
     setChatState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      // Get AI response
-      const response = await chatService.getAIResponse(userMessage.content);
-      
-      // Add bot response
+      // Call backend /chat/ endpoint
+      const chatUrl = "/chat/";
+      console.log("Sending chat message to:", chatUrl);
+      let systemPrompt = undefined;
+      if (chatContext) {
+        systemPrompt = `You are an agricultural AI assistant. The user is asking about the following disease detection: Disease: ${chatContext.disease}, Crop: ${chatContext.cropType}, Confidence: ${(chatContext.confidence * 100).toFixed(0)}%, Severity: ${chatContext.severity}. Provide context-aware, expert advice.`;
+      }
+      const payload = systemPrompt
+        ? { message: userMessage.content, system_prompt: systemPrompt }
+        : { message: userMessage.content };
+      const response = await fetch(chatUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || response.statusText);
+      }
+      const data = await response.json();
       const botMessage: Message = {
         id: Date.now() + 1,
         type: "bot",
-        content: response.message,
+        content: data.response,
         timestamp: new Date()
       };
       
@@ -372,20 +422,7 @@ What specific aspect of ${context.disease} management would you like to discuss?
       let errorMessage = 'An unexpected error occurred';
       
       if (error instanceof Error) {
-        if (error.message.includes('Authentication')) {
-          errorMessage = 'Please log in again to continue chatting.';
-          // Redirect to login after a delay
-          setTimeout(() => {
-            localStorage.clear();
-            navigate('/login');
-          }, 2000);
-        } else if (error.message.includes('unavailable')) {
-          errorMessage = 'AI service is currently unavailable. Please try again later.';
-        } else if (error.message.includes('Failed to get AI response')) {
-          errorMessage = 'Unable to get AI response. Please check your connection and try again.';
-        } else {
-          errorMessage = error.message;
-        }
+        errorMessage = error.message;
       }
       
       setChatState(prev => ({ 
@@ -641,46 +678,6 @@ What specific aspect of ${context.disease} management would you like to discuss?
     <SidebarLayout>
       {/* Main Content */}
       <div className="flex-1 flex flex-col h-screen md:ml-24 relative">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-blue-600 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">AI Assistant</h1>
-                <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 rounded-full ${chatState.isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                  <span className="text-sm text-gray-500">
-                    {chatState.isConnected ? 'Connected' : 'Disconnected'}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setShowHistory(!showHistory)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-2"
-                title="Chat history"
-              >
-                <History className="w-5 h-5" />
-              </button>
-              <button
-                onClick={handleClearChat}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-2"
-                title="Clear chat"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Chat History Sidebar */}
         {showHistory && (
           <div className="bg-white border-b border-gray-200">
@@ -695,10 +692,10 @@ What specific aspect of ${context.disease} management would you like to discuss?
                 </button>
               </div>
               <div className="space-y-2 max-h-60 overflow-y-auto scrollbar-hide">
-                {chatHistory.length === 0 ? (
+                {/* chatHistory.length === 0 ? ( // This line was removed as per the edit hint
                   <p className="text-sm text-gray-500">No chat history yet</p>
-                ) : (
-                  chatHistory.map((chat) => (
+                ) : ( */}
+                  {/* chatHistory.map((chat) => ( // This line was removed as per the edit hint
                     <div
                       key={chat.id}
                       className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
@@ -727,8 +724,8 @@ What specific aspect of ${context.disease} management would you like to discuss?
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  ))
-                )}
+                  )) */}
+                {/* )} */}
               </div>
             </div>
           </div>
@@ -871,121 +868,67 @@ What specific aspect of ${context.disease} management would you like to discuss?
         )}
 
         {/* Messages Container */}
-        <div className="flex-1 overflow-y-auto scrollbar-hide">
-          <div className="max-w-4xl mx-auto px-4 py-6">
-            <div className="space-y-6">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div className={`max-w-[85%] ${msg.type === "user" ? "order-2" : "order-1"}`}>
-                    <div className={`flex items-start gap-3 ${msg.type === "user" ? "flex-row-reverse" : ""}`}>
-                      {/* Avatar */}
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        msg.type === "user" 
-                          ? "bg-blue-600" 
-                          : "bg-gray-100"
-                      }`}>
-                        {msg.type === "user" ? (
-                          <User className="w-4 h-4 text-white" />
-                        ) : (
-                          <Bot className="w-4 h-4 text-gray-600" />
-                        )}
+        <div className="flex-1 flex flex-col">
+          <ScrollArea className="flex-1 px-4 py-4 bg-white">
+            <div className="max-w-3xl mx-auto space-y-6">
+              {messages.map((msg, idx) => (
+                <div key={msg.id} className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`rounded-lg px-4 py-3 max-w-[85%] ${msg.type === "user" ? "bg-blue-600 text-white" : "bg-gray-50 text-gray-900"}`}>
+                    {msg.type === "user" ? (
+                      <div className="text-sm leading-relaxed">
+                        {msg.content}
                       </div>
-                      
-                      {/* Message Content */}
-                      <div className={`flex-1 ${msg.type === "user" ? "text-right" : ""}`}>
-                        <div className={`relative group ${
-                          msg.type === "user"
-                            ? "bg-blue-600 text-white"
-                            : "bg-white border border-gray-200 text-gray-900"
-                        } rounded-2xl px-4 py-3`}>
-                          
-                          {/* Copy button for bot messages */}
-                          {msg.type === "bot" && (
-                            <button
-                              onClick={() => handleCopyMessage(msg.content, msg.id)}
-                              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700"
-                              title="Copy message"
-                            >
-                              {copiedMessageId === msg.id ? (
-                                <Check className="w-3 h-3 text-green-600" />
-                              ) : (
-                                <Copy className="w-3 h-3" />
-                              )}
-                            </button>
-                          )}
-                          
-                          <div className="pr-8">
-                            {msg.type === "user" ? (
-                              <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                                {msg.content}
-                              </div>
-                            ) : (
-                              formatMessageContent(msg.content)
-                            )}
-                          </div>
-                        </div>
-                        <div className={`text-xs text-gray-500 mt-1 ${msg.type === "user" ? "text-right" : ""}`}>
-                          {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
+                    ) : (
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               ))}
-              
-              {/* Loading indicator */}
               {chatState.isLoading && (
                 <div className="flex justify-start">
-                  <div className="max-w-[85%]">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Bot className="w-4 h-4 text-gray-600" />
-                      </div>
-                      <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
-                          <span className="text-sm text-gray-600">AI is thinking...</span>
-                        </div>
-                      </div>
-                    </div>
+                  <div className="rounded-lg px-4 py-3 bg-gray-50 text-gray-900 flex items-center gap-2">
+                    <Spinner size={16} />
+                    <span className="text-sm">...</span>
                   </div>
                 </div>
               )}
-              
               <div ref={messagesEndRef} />
             </div>
-          </div>
+          </ScrollArea>
         </div>
 
         {/* Input Container */}
-        <div className="bg-white border-t border-gray-200">
-          <div className="max-w-4xl mx-auto px-4 py-4">
-            <div className="relative">
-              <textarea
-                ref={textareaRef}
-                value={message}
-                onChange={handleMessageChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask about crop diseases, treatment methods, or farming techniques..."
-                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none bg-white "
-                rows={1}
-                style={{ minHeight: '48px', maxHeight: '120px' }}
-              />
-              <Button
-                onClick={handleSendMessage}
-                disabled={!message.trim() || chatState.isLoading}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 w-8 h-8 p-0 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              Press Enter to send, Shift+Enter for new line
-            </p>
-          </div>
+        <div className="bg-white border-t border-gray-200 px-4 py-4">
+          <form
+            className="flex items-end gap-3 max-w-3xl mx-auto"
+            onSubmit={e => {
+              e.preventDefault();
+              handleSendMessage();
+            }}
+          >
+            <Textarea
+              ref={textareaRef}
+              value={message}
+              onChange={handleMessageChange}
+              onKeyDown={handleKeyDown}
+              placeholder="Message PhamIQ..."
+              className="flex-1 min-h-[44px] max-h-32 resize-none border border-gray-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              rows={1}
+              style={{ minHeight: '44px', maxHeight: '128px' }}
+            />
+            <Button
+              type="submit"
+              disabled={!message.trim() || chatState.isLoading}
+              className="w-10 h-10 p-0 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </form>
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            Press Enter to send, Shift+Enter for new line
+          </p>
         </div>
       </div>
     </SidebarLayout>

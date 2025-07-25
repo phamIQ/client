@@ -1,5 +1,4 @@
-import { alleaiService } from './alleaiService';
-import { askAiChat } from './aiChatService';
+import { freeaiService } from './alleaiService';
 
 /**
  * AI Integration Service - High-level functions for common AI operations
@@ -12,7 +11,7 @@ class AIIntegrationService {
     try {
       console.log(`Getting recommendations for ${diseaseName} (${confidence}% confidence) in ${cropType}`);
       
-      const result = await alleaiService.analyzeDisease(diseaseName, confidence, cropType, models);
+      const result = await freeaiService.analyzeDisease(diseaseName, confidence, cropType, models);
       
       // If the result is a string, try to parse it as JSON
       if (typeof result === 'string') {
@@ -45,23 +44,6 @@ class AIIntegrationService {
   }
 
   /**
-   * Ask AI about a specific disease with context
-   */
-  async askAboutDisease(diseaseName: string, confidence: number, cropType: string, question: string, models?: string[]): Promise<string> {
-    try {
-      console.log(`Asking AI about ${diseaseName} in ${cropType}: ${question}`);
-      
-      const context = `The plant was diagnosed with ${diseaseName} (${confidence}% confidence) in ${cropType} crops.`;
-      const fullQuestion = `${context}\n\nQuestion: ${question}`;
-      
-      return await askAiChat(fullQuestion, context, models);
-    } catch (error) {
-      console.error('Error asking about disease:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Get treatment recommendations for a disease
    */
   async getTreatmentRecommendations(diseaseName: string, confidence: number, cropType: string, models?: string[]): Promise<string> {
@@ -78,7 +60,7 @@ class AIIntegrationService {
 
 Focus on practical, actionable advice that farmers can implement immediately.`;
       
-      return await alleaiService.chat(prompt, models);
+      return await freeaiService.chat(prompt, models);
     } catch (error) {
       console.error('Error getting treatment recommendations:', error);
       throw error;
@@ -102,7 +84,7 @@ Focus on practical, actionable advice that farmers can implement immediately.`;
 
 Focus on sustainable, long-term solutions.`;
       
-      return await alleaiService.chat(prompt, models);
+      return await freeaiService.chat(prompt, models);
     } catch (error) {
       console.error('Error getting prevention strategies:', error);
       throw error;
@@ -117,15 +99,15 @@ Focus on sustainable, long-term solutions.`;
       console.log(`Generating discovery content for: ${topic}`);
       
       // Generate title
-      const title = await alleaiService.generateTitle(topic, models);
+      const title = await freeaiService.generateTitle(topic, models);
       
       // Generate description
-      const description = await alleaiService.generateDescription(topic, models);
+      const description = await freeaiService.generateDescription(topic, models);
       
       // Generate image (placeholder for now)
       let imageUrl: string | undefined;
       try {
-        imageUrl = await alleaiService.generateImage(topic, models);
+        imageUrl = await freeaiService.generateImage(topic, models);
       } catch (error) {
         console.warn('Image generation failed, using placeholder');
         imageUrl = undefined;
@@ -149,7 +131,7 @@ Focus on sustainable, long-term solutions.`;
 Focus on practical, actionable information that farmers and agricultural professionals can use. 
 Include both traditional and modern approaches when applicable.`;
       
-      return await alleaiService.chat(prompt, models);
+      return await freeaiService.chat(prompt, models);
     } catch (error) {
       console.error('Error chatting about agriculture:', error);
       throw error;
@@ -163,8 +145,8 @@ Include both traditional and modern approaches when applicable.`;
     try {
       console.log('Testing AI connection...');
       
-      const status = await alleaiService.getStatus();
-      const models = await alleaiService.getAvailableModels();
+      const status = await freeaiService.getStatus();
+      const models = await freeaiService.getAvailableModels();
       
       return {
         available: status.status === 'available',
@@ -207,7 +189,7 @@ Include both traditional and modern approaches when applicable.`;
       if (recommendations.disease_overview) {
         overview = recommendations.disease_overview;
       } else {
-        overview = await alleaiService.chat(
+        overview = await freeaiService.chat(
           `Provide a brief overview of ${diseaseName} in ${cropType} crops, including symptoms and identification.`,
           models
         );
@@ -242,7 +224,7 @@ Include:
 
 Keep it brief but informative for quick reference.`;
       
-      return await alleaiService.chat(prompt, models);
+      return await freeaiService.chat(prompt, models);
     } catch (error) {
       console.error('Error generating analysis summary:', error);
       throw error;
@@ -250,15 +232,12 @@ Keep it brief but informative for quick reference.`;
   }
 }
 
-// Export singleton instance
-export const aiIntegrationService = new AIIntegrationService();
+// Create singleton instance
+const aiIntegrationService = new AIIntegrationService();
 
-// Export individual functions for easy access
+// Export individual functions for easier imports
 export const getDiseaseRecommendations = (diseaseName: string, confidence: number, cropType: string, models?: string[]) => 
   aiIntegrationService.getDiseaseRecommendations(diseaseName, confidence, cropType, models);
-
-export const askAboutDisease = (diseaseName: string, confidence: number, cropType: string, question: string, models?: string[]) => 
-  aiIntegrationService.askAboutDisease(diseaseName, confidence, cropType, question, models);
 
 export const getTreatmentRecommendations = (diseaseName: string, confidence: number, cropType: string, models?: string[]) => 
   aiIntegrationService.getTreatmentRecommendations(diseaseName, confidence, cropType, models);

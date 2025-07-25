@@ -315,8 +315,8 @@ const Discovery = () => {
             {filteredInsights.length > 0 && (
               <div className="w-full bg-white flex flex-col overflow-hidden mb-2">
                 {filteredInsights[0].image_url && (
-                  <div className="w-full aspect-[16/9] bg-gray-100 flex items-center justify-center overflow-hidden">
-                    <img src={getImageUrl(filteredInsights[0].image_url)} alt={filteredInsights[0].title} className="w-full h-full object-cover" />
+                  <div className="w-full aspect-[16/9] bg-gray-100 flex items-center justify-center overflow-hidden rounded-lg">
+                    <img src={getImageUrl(filteredInsights[0].image_url)} alt={filteredInsights[0].title} className="w-full h-full object-cover rounded-lg" />
                   </div>
                 )}
                 <div className="flex-1 pt-6 pb-2 px-0 flex flex-col justify-between items-start text-left">
@@ -345,8 +345,8 @@ const Discovery = () => {
                 {filteredInsights.slice(1).map(insight => (
                   <div key={insight.id} className="flex-shrink-0 w-72 bg-white flex flex-col overflow-hidden">
                     {insight.image_url && (
-                      <div className="w-full aspect-[16/9] bg-gray-100 flex items-center justify-center overflow-hidden">
-                        <img src={getImageUrl(insight.image_url)} alt={insight.title} className="w-full h-full object-cover" />
+                      <div className="w-full aspect-[16/9] bg-gray-100 flex items-center justify-center overflow-hidden rounded-lg">
+                        <img src={getImageUrl(insight.image_url)} alt={insight.title} className="w-full h-full object-cover rounded-lg" />
                       </div>
                     )}
                     <div className="flex-1 pt-4 pb-2 px-0 flex flex-col justify-between items-start text-left">

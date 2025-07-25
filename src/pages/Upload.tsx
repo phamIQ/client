@@ -5,14 +5,12 @@ import SidebarLayout from '../components/SidebarLayout';
 import { Button } from "@/components/ui/button";
 import { predictionService, DetectionResult } from '@/api/predictionService';
 import { multispectralService, MultispectralDetectionResult } from '@/api/multispectralService';
-import { askAiChat } from '../api/aiChatService';
 import { useToast } from "@/hooks/use-toast";
 
 // Import upload components
 import UploadInput from '../components/upload/UploadInput';
 import AnalysisProgress from '../components/upload/AnalysisProgress';
 import ChatHistory from '../components/upload/ChatHistory';
-import AiChatHistory from '../components/upload/AiChatHistory';
 import MobileMenu from '../components/upload/MobileMenu';
 
 type LimitedMultispectralResult = { limited: true; message: string; band_references: any; calibration_constants: any; general_metadata: any; rawMetadata: any };
@@ -43,9 +41,6 @@ const UploadPage = () => {
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatEntry[]>([]);
-  const [aiChatInput, setAiChatInput] = useState("");
-  const [aiChatHistory, setAiChatHistory] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
-  const [aiLoading, setAiLoading] = useState(false);
   const [analysisLog, setAnalysisLog] = useState<string[]>([]);
   const [currentStage, setCurrentStage] = useState<'prediction' | 'llm' | 'complete'>('prediction');
   const [predictionResult, setPredictionResult] = useState<any>(null);
@@ -543,77 +538,6 @@ const UploadPage = () => {
     navigate("/login");
   };
 
-  // When a new classification is made, clear the AI chat history
-  useEffect(() => {
-    if (analysisResult || multispectralResult) {
-      setAiChatHistory([]);
-    }
-  }, [analysisResult, multispectralResult]);
-
-  // Helper to get context string for LLM
-  const getDiseaseContext = () => {
-    if (analysisResult) {
-      return `The last image was classified as ${analysisResult.disease} with ${analysisResult.confidence}% confidence. Severity: ${analysisResult.severity}. Crop: ${analysisResult.cropType}.`;
-    }
-    if (multispectralResult && 'disease' in multispectralResult && 'confidence' in multispectralResult) {
-      return `The last multispectral analysis detected ${multispectralResult.disease} with ${multispectralResult.confidence}% confidence.`;
-    }
-    return '';
-  };
-
-  // Handle asking AI about a specific prediction
-  const handleAskAIAboutPrediction = (disease: string, confidence: number, cropType: string) => {
-    // Enable AI chat mode
-    // setAiChatMode(true); // This state is removed
-    
-    // Set a contextual initial message
-    const contextMessage = `I have a ${cropType} plant that was diagnosed with ${disease} (${confidence}% confidence). Can you help me understand this disease and provide treatment recommendations?`;
-    
-    // Add the context message to chat history
-    setAiChatHistory([{ role: 'user', content: contextMessage }]);
-    
-    // Automatically send the message to get AI response
-    handleAiSendWithMessage(contextMessage);
-  };
-
-  // Handle sending AI chat with a specific message
-  const aiSendInProgress = useRef(false);
-  async function handleAiSendWithMessage(message: string) {
-    if (!message.trim() || aiLoading || aiSendInProgress.current) return;
-    aiSendInProgress.current = true;
-    setAiLoading(true);
-    try {
-      const context = getDiseaseContext();
-      const aiResponse = await askAiChat(message, context, selectedModels);
-      setAiChatHistory(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-    } catch (err) {
-      setAiChatHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, the AI could not respond at this time.' }]);
-    } finally {
-      setAiLoading(false);
-      aiSendInProgress.current = false;
-    }
-  }
-
-  // Handle sending AI chat
-  async function handleAiSend() {
-    if (!aiChatInput.trim() || aiLoading || aiSendInProgress.current) return;
-    aiSendInProgress.current = true;
-    const userMessage = aiChatInput.trim();
-    setAiLoading(true);
-    setAiChatInput('');
-    setAiChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
-    try {
-      const context = getDiseaseContext();
-      const aiResponse = await askAiChat(userMessage, context, selectedModels);
-      setAiChatHistory(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-    } catch (err) {
-      setAiChatHistory(prev => [...prev, { role: 'assistant', content: 'Sorry, the AI could not respond at this time.' }]);
-    } finally {
-      setAiLoading(false);
-      aiSendInProgress.current = false;
-    }
-  }
-
   const handleNavigateToResults = (result: any) => {
     localStorage.setItem('detectionResult', JSON.stringify(result));
     navigate('/results');
@@ -705,7 +629,6 @@ const UploadPage = () => {
           error={error}
         />
 
-
         
         {/* Chat History */}
         <ChatHistory
@@ -713,13 +636,6 @@ const UploadPage = () => {
           onNavigateToResults={handleNavigateToResults}
           getSeverityColor={getSeverityColor}
           predictionService={predictionService}
-          onAskAI={handleAskAIAboutPrediction}
-          aiChatHistory={aiChatHistory}
-          aiChatInput={aiChatInput}
-          onAiChatInputChange={aiLoading ? () => {} : setAiChatInput}
-          onAiSend={aiLoading ? () => {} : handleAiSend}
-          aiLoading={aiLoading}
-          selectedModels={selectedModels}
         />
 
         {/* Upload Input */}

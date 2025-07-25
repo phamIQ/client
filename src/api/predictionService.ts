@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 import { toast } from "@/components/ui/use-toast";
 
@@ -196,7 +196,7 @@ export class PredictionService {
     if (!recommendations) {
       // Provide basic fallback information
       return {
-        about: `This is ${diseaseName}, a common crop disease. For detailed treatment recommendations, please ensure the AlleAI API is properly configured.`,
+        about: `This is ${diseaseName}, a common crop disease. For detailed treatment recommendations, please use the AI assistant for free recommendations.`,
         immediateAction: [
           "Isolate affected plants",
           "Remove severely infected leaves",

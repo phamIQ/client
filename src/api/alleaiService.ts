@@ -5,35 +5,28 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
 // Enhanced error handling for API calls
 const handleApiError = (error: any, operation: string): never => {
   if (error.response) {
-    // Server responded with error status
     const status = error.response.status;
     const message = error.response.data?.detail || error.response.data?.message || error.message;
-    
     if (status === 503) {
       throw new Error(`AI service unavailable: ${message}`);
     } else if (status === 401) {
-      throw new Error('AI service authentication failed. Please check API key configuration.');
+      throw new Error('AI service authentication failed. Please check configuration.');
     } else if (status === 500) {
       throw new Error(`AI service error: ${message}`);
     } else {
       throw new Error(`API error (${status}): ${message}`);
     }
   } else if (error.request) {
-    // Network error
     throw new Error(`Network error: Unable to connect to AI service at ${API_BASE}`);
   } else {
-    // Other error
     throw new Error(`${operation} failed: ${error.message}`);
   }
 };
 
 /**
- * Comprehensive AlleAI service for all AI-related functionality
+ * FreeAI service for all AI-related functionality (no paid API required)
  */
-class AlleAIService {
-  /**
-   * Generate a title for content
-   */
+class FreeAIService {
   async generateTitle(prompt: string, models?: string | string[]): Promise<string> {
     try {
       const modelsArray = models ? (Array.isArray(models) ? models : [models]) : undefined;
@@ -45,9 +38,6 @@ class AlleAIService {
     }
   }
 
-  /**
-   * Generate a description for content
-   */
   async generateDescription(prompt: string, models?: string | string[]): Promise<string> {
     try {
       const modelsArray = models ? (Array.isArray(models) ? models : [models]) : undefined;
@@ -59,9 +49,6 @@ class AlleAIService {
     }
   }
 
-  /**
-   * Generate an image (placeholder for now)
-   */
   async generateImage(prompt: string, models?: string | string[]): Promise<string> {
     try {
       const modelsArray = models ? (Array.isArray(models) ? models : [models]) : undefined;
@@ -73,9 +60,6 @@ class AlleAIService {
     }
   }
 
-  /**
-   * Chat with AI
-   */
   async chat(prompt: string, models?: string | string[]): Promise<string> {
     try {
       const modelsArray = models ? (Array.isArray(models) ? models : [models]) : undefined;
@@ -87,9 +71,6 @@ class AlleAIService {
     }
   }
 
-  /**
-   * Analyze disease with specialized prompts
-   */
   async analyzeDisease(diseaseName: string, confidence: number, cropType: string, models?: string | string[]): Promise<any> {
     try {
       const modelsArray = models ? (Array.isArray(models) ? models : [models]) : undefined;
@@ -102,9 +83,6 @@ class AlleAIService {
     }
   }
 
-  /**
-   * Get AI service status
-   */
   async getStatus(): Promise<any> {
     try {
       const res = await axios.get(`${API_BASE}/ai/status`);
@@ -115,9 +93,6 @@ class AlleAIService {
     }
   }
 
-  /**
-   * Test AI connection
-   */
   async testConnection(): Promise<boolean> {
     try {
       const status = await this.getStatus();
@@ -128,9 +103,6 @@ class AlleAIService {
     }
   }
 
-  /**
-   * Test backend connectivity
-   */
   async testBackendConnection(): Promise<{ connected: boolean; error?: string }> {
     try {
       const res = await axios.get(`${API_BASE}/health`);
@@ -144,9 +116,6 @@ class AlleAIService {
     }
   }
 
-  /**
-   * Get available models
-   */
   async getAvailableModels(): Promise<string[]> {
     try {
       const status = await this.getStatus();
@@ -157,28 +126,9 @@ class AlleAIService {
     }
   }
 
-  /**
-   * Ask AI about a specific disease with context
-   */
-  async askAboutDisease(diseaseName: string, confidence: number, cropType: string, question: string, models?: string | string[]): Promise<string> {
-    try {
-      const context = `Disease: ${diseaseName}, Confidence: ${confidence}%, Crop: ${cropType}`;
-      const fullPrompt = `Context: ${context}\n\nQuestion: ${question}\n\nPlease provide detailed, practical advice for managing this disease in ${cropType} crops.`;
-      
-      return await this.chat(fullPrompt, models);
-    } catch (error) {
-      console.error('Error asking about disease:', error);
-      handleApiError(error, 'Disease advice');
-    }
-  }
-
-  /**
-   * Get treatment recommendations for a disease
-   */
   async getTreatmentRecommendations(diseaseName: string, confidence: number, cropType: string, models?: string | string[]): Promise<string> {
     try {
       const prompt = `Provide comprehensive treatment recommendations for ${diseaseName} in ${cropType} crops. Include organic and chemical options, application methods, timing, and safety precautions.`;
-      
       return await this.chat(prompt, models);
     } catch (error) {
       console.error('Error getting treatment recommendations:', error);
@@ -186,13 +136,9 @@ class AlleAIService {
     }
   }
 
-  /**
-   * Get prevention strategies for a disease
-   */
   async getPreventionStrategies(diseaseName: string, cropType: string, models?: string | string[]): Promise<string> {
     try {
       const prompt = `Provide comprehensive prevention strategies for ${diseaseName} in ${cropType} crops. Include cultural practices, environmental management, and long-term prevention measures.`;
-      
       return await this.chat(prompt, models);
     } catch (error) {
       console.error('Error getting prevention strategies:', error);
@@ -202,12 +148,12 @@ class AlleAIService {
 }
 
 // Export singleton instance
-export const alleaiService = new AlleAIService();
+export const freeaiService = new FreeAIService();
 
 // Export individual functions for backward compatibility
-export const generateTitle = (prompt: string, models?: string | string[]) => alleaiService.generateTitle(prompt, models);
-export const generateDescription = (prompt: string, models?: string | string[]) => alleaiService.generateDescription(prompt, models);
-export const generateImage = (prompt: string, models?: string | string[]) => alleaiService.generateImage(prompt, models);
-export const aiChat = (prompt: string, models?: string | string[]) => alleaiService.chat(prompt, models);
-export const diseaseAnalysis = (diseaseName: string, confidence: number, cropType: string, models?: string | string[]) => alleaiService.analyzeDisease(diseaseName, confidence, cropType, models);
-export const getAIStatus = () => alleaiService.getStatus(); 
+export const generateTitle = (prompt: string, models?: string | string[]) => freeaiService.generateTitle(prompt, models);
+export const generateDescription = (prompt: string, models?: string | string[]) => freeaiService.generateDescription(prompt, models);
+export const generateImage = (prompt: string, models?: string | string[]) => freeaiService.generateImage(prompt, models);
+export const aiChat = (prompt: string, models?: string | string[]) => freeaiService.chat(prompt, models);
+export const diseaseAnalysis = (diseaseName: string, confidence: number, cropType: string, models?: string | string[]) => freeaiService.analyzeDisease(diseaseName, confidence, cropType, models);
+export const getAIStatus = () => freeaiService.getStatus(); 
