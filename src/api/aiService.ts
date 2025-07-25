@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Use the Vite proxy for development
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export async function generateTitle(prompt: string, models?: string | string[]) {
   try {
